@@ -10,4 +10,4 @@ pc_loader: pc_loader.c
 install: bootloader.bin pc_loader
 	./pc_loader /dev/ttyUSB0 bootloader.bin program.bin
 clean:
-	rm *.elf *.bin
+	rm -f *.elf *.bin pc_loader
