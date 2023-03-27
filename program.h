@@ -1,11 +1,10 @@
-const unsigned char stepper_steps[6] = {0x90, 0x80, 0xE0, 0x60, 0x70, 0x10};
+int main(void) __attribute__((section(".main")));
 
-struct interrupt_table_entry {
-  unsigned char instruction;
-  unsigned short address;
-};
+const unsigned char stepper_steps[6] = {0x66, 0x44, 0xDD, 0x99, 0xBB, 0x22};
 
 extern volatile unsigned char _PORTA;
+extern volatile unsigned char _TFLG2;
+extern volatile unsigned char _TCNTH;
 extern volatile unsigned char _SCDR;
 extern volatile unsigned char _SCSR;
 
@@ -13,14 +12,9 @@ extern volatile unsigned char _STEPPER;
 extern volatile unsigned char _LCD_CTRL;
 extern volatile unsigned char _LCD_DATA;
 
-extern volatile struct interrupt_table_entry _ISR_TABLE_RTI;
-extern volatile struct interrupt_table_entry _ISR_TABLE_SWI;
+extern const unsigned short _bss_start;
+extern const unsigned short _bss_end;
 
-int main(void) __attribute__((section(".main")));
-void __attribute__((interrupt)) isr_rti();
-void __attribute__((interrupt)) isr_swi();
-
-void isr_setup();
-
+void interval();
 void handle_display();
 void handle_steppers();

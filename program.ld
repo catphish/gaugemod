@@ -1,6 +1,7 @@
 MEMORY
 {
-  ram      (rwx) : ORIGIN = 0x2000, LENGTH = 0x6000
+  intram      (rwx) : ORIGIN = 0x0000, LENGTH = 0x100
+  extram      (rwx) : ORIGIN = 0x2000, LENGTH = 0x1000
 }
 
 SECTIONS
@@ -8,24 +9,30 @@ SECTIONS
   .text :
   {
     *(.main)
-  } > ram
+    *(.text)
+    *(.data)
+    *(.rodata)
+    _bss_start = .;
+    *(.bss)
+    _bss_end = .;
+  } > extram
+
+  .softregs :
+  {
+    *(.softregs)
+  } > intram
 }
 
-_.z = 0x0000;
-_.xy = 0x0002;
-_.tmp = 0x0004;
-_.d1 = 0x0010;
-_.d2 = 0x0012;
-_.d3 = 0x0014;
-_.d4 = 0x0016;
-
+/* Internal peripherals */
 _PORTA = 0x1000;
-_SCSR = 0x102E;
-_SCDR = 0x102F;
-_ISR_TABLE_RTI = 0x00EB;
-_ISR_TABLE_SWI = 0x00F4;
+_TCNTH = 0x100E;
+_TMSK2 = 0x1024;
+_TFLG2 = 0x1025;
+_PACTL = 0x1026;
+_SCSR  = 0x102E;
+_SCDR  = 0x102F;
 
-_STEPPER = 0x0700;
-
+/* External peripherals */
 _LCD_CTRL = 0x0600;
 _LCD_DATA = 0x0601;
+_STEPPER  = 0x0700;

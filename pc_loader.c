@@ -1,16 +1,15 @@
+#include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/ioctl.h>
-#include <fcntl.h>
-#include <errno.h>
 #include <string.h>
+#include <sys/ioctl.h>
 #include <unistd.h>
-#include "/usr/include/asm-generic/termbits.h"
+
 #include "/usr/include/asm-generic/ioctls.h"
+#include "/usr/include/asm-generic/termbits.h"
 
-
-int main(int argc, char* argv[])
-{
+int main(int argc, char* argv[]) {
   int fd;
   unsigned char send_ch, recv_ch;
 
@@ -35,7 +34,7 @@ int main(int argc, char* argv[])
   tio.c_ospeed = 7200;
   int r = ioctl(fd, TCSETS2, &tio);
   if (r == 0) {
-      printf("Serial port configured successfully.\n");
+    printf("Serial port configured successfully.\n");
   } else {
     perror("Error configuring serial device");
     return 1;
@@ -53,7 +52,7 @@ int main(int argc, char* argv[])
   send_ch = 255;
   write(fd, &send_ch, 1);
   printf("Uploading bootloader...");
-  for(int n=0; n<256; n++) {
+  for (int n = 0; n < 256; n++) {
     write(fd, loaderbuf + n, 1);
   }
   printf(" Done\n");
@@ -74,11 +73,10 @@ int main(int argc, char* argv[])
   write(fd, &length_l, 1);
 
   printf("Uploading program...");
-  for(int n=0; n<length; n++) {
+  for (int n = 0; n < length; n++) {
     write(fd, progbuf + n, 1);
   }
   printf(" Done\n");
 
   return 0;
-
 }
