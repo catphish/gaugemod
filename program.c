@@ -46,7 +46,7 @@ void handle_display() {
 void sci_handler() {
   _PORTA ^= 0x80;
   // TODO: Load a complete frame into a buffer for processing by the main loop.
-  // TODO: Use the 9th data but for more reliable framing.
+  // TODO: Use the 9th data bit for more reliable framing.
   static unsigned char serial_state = 0;
   static unsigned char serial_command;
   static unsigned char serial_data[2];
