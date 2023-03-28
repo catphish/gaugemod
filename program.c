@@ -2,7 +2,7 @@
 
 unsigned short stepper_position = 0;
 unsigned short stepper_target = 0;
-char display_buffer[26] = "QWERT, wotld!Goodbwe world";
+char display_buffer[26] = "Hello, world!Goodbye world";
 
 // Write a character from the display buffer to the display
 void handle_display() {
@@ -23,7 +23,7 @@ void handle_display() {
     case 3:
       _LCD_CTRL = 0x80;
       display_status = 4;
-      break;
+      break;  // Enable receive interrupt
     case 4 ... 16:
       _LCD_DATA = display_buffer[display_status - 4];
       display_status++;
@@ -43,9 +43,9 @@ void handle_display() {
 }
 
 // Receive serial data
-void handle_serial() {
-  // TODO: Use an interrupt for incoming serial data. Load a complete
-  //       frame into a buffer for processing by the main loop.
+void sci_handler() {
+  _PORTA ^= 0x80;
+  // TODO: Load a complete frame into a buffer for processing by the main loop.
   // TODO: Use the 9th data but for more reliable framing.
   static unsigned char serial_state = 0;
   static unsigned char serial_command;
@@ -107,15 +107,20 @@ int main() {
     bss++;
   }
 
+  // Install the SCI handler
+  _SCI_VECTOR.instruction = 0x7E;
+  _SCI_VECTOR.address = (unsigned short)sci_handler;
+  // Enable receive interrupt
+  _SCCR2 = _SCCR2 | 0x20;
+  // Unmask interrupts
+  asm("cli");
+
   // Set bit 3 of PORT A (0x1000)
-  // This illuminates the cluster and confirms success
+  // This illuminates the cluster and confirms the program is running
   _PORTA = 0x08;
 
   // Loop forever
   while (1) {
-    // Poll serial data continuously
-    handle_serial();
-
     // Run display update code every tick
     unsigned char cnt_1 = _TCNTH;
     static unsigned short prev_display_cnt = 0;
