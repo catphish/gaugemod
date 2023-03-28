@@ -23,7 +23,7 @@ void handle_display() {
     case 3:
       _LCD_CTRL = 0x80;
       display_status = 4;
-      break;  // Enable receive interrupt
+      break;
     case 4 ... 16:
       _LCD_DATA = display_buffer[display_status - 4];
       display_status++;
