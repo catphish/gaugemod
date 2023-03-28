@@ -12,9 +12,8 @@ extern volatile unsigned char _STEPPER;
 extern volatile unsigned char _LCD_CTRL;
 extern volatile unsigned char _LCD_DATA;
 
-extern const unsigned short _bss_start;
-extern const unsigned short _bss_end;
+extern unsigned short _bss_start;
+extern unsigned short _bss_end;
 
-void interval();
 void handle_display();
 void handle_steppers();

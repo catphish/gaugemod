@@ -44,27 +44,40 @@ void handle_display() {
 
 // Receive serial data
 void handle_serial() {
+  // TODO: Use an interrupt for incoming serial data. Load a complete
+  //       frame into a buffer for processing by the main loop.
+  // TODO: Use the 9th data but for more reliable framing.
   static unsigned char serial_state = 0;
   static unsigned char serial_command;
   static unsigned char serial_data[2];
   if (_SCSR & 0x20) {
     switch (serial_state) {
       case 0:
-        serial_command = _SCDR;
-        serial_state = 1;
+        // Wait for 0xFF to start a frame
+        if (_SCDR == 0xFF) serial_state = 1;
         break;
       case 1:
-        serial_data[0] = _SCDR;
+        // Byte 1 is the command
+        serial_command = _SCDR;
         serial_state = 2;
         break;
       case 2:
+        // Byte 2 is the first data byte
+        serial_data[0] = _SCDR;
+        serial_state = 3;
+        break;
+      case 3:
+        // Byte 3 is the second data byte
         serial_data[1] = _SCDR;
+        // TODO: implement a checksum here
         switch (serial_command) {
           case 0:
+            // Command 0 sets the stepper target
             stepper_target = (serial_data[0] << 8) | serial_data[1];
             break;
           case 1:
-            display_buffer[serial_data[0]] = serial_data[1];
+            // Command 1 sets a character in the display buffer
+            if (serial_data[0] < 26) display_buffer[serial_data[0]] = serial_data[1];
             break;
         }
         serial_state = 0;
@@ -86,12 +99,6 @@ void handle_steppers() {
   _TFLG2 = 0x40;
 }
 
-// Functio called at fixed intervals
-void interval() {
-  handle_display();
-  handle_steppers();
-}
-
 int main() {
   // Clear the BSS segment
   unsigned short *bss = &_bss_start;
@@ -106,18 +113,23 @@ int main() {
 
   // Loop forever
   while (1) {
+    // Poll serial data continuously
     handle_serial();
-    unsigned int cnt = _TCNTH >> 3;
-    static unsigned short prev_stepper_cnt = 0;
-    if (cnt != prev_stepper_cnt) {
-      handle_steppers();
-      prev_stepper_cnt = cnt;
-    }
-    cnt = _TCNTH >> 3;
+
+    // Run display update code every tick
+    unsigned char cnt_1 = _TCNTH;
     static unsigned short prev_display_cnt = 0;
-    if (cnt != prev_display_cnt) {
+    if (cnt_1 != prev_display_cnt) {
       handle_display();
-      prev_display_cnt = cnt;
+      prev_display_cnt = cnt_1;
+    }
+
+    // Run stepper code every 8th tick
+    unsigned char cnt_8 = cnt_1 & 0xF8;
+    static unsigned short prev_stepper_cnt = 0;
+    if (cnt_8 != prev_stepper_cnt) {
+      handle_steppers();
+      prev_stepper_cnt = cnt_8;
     }
   }
 }

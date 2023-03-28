@@ -57,7 +57,16 @@ int main(int argc, char* argv[]) {
   }
   printf(" Done\n");
 
-  usleep(10000);
+  usleep(500000);
+  tio.c_ispeed = 7200;
+  tio.c_ospeed = 7200;
+  r = ioctl(fd, TCSETS2, &tio);
+  if (r == 0) {
+    printf("Serial port configured successfully.\n");
+  } else {
+    perror("Error configuring serial device");
+    return 1;
+  }
 
   char progbuf[24576];
   memset(progbuf, 0, 24576);
@@ -69,6 +78,7 @@ int main(int argc, char* argv[]) {
   int length = read(fd3, progbuf, 24576);
   unsigned char length_h = length >> 8;
   unsigned char length_l = length;
+
   write(fd, &length_h, 1);
   write(fd, &length_l, 1);
 
