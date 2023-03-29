@@ -1,119 +1,110 @@
 #include "program.h"
 
-unsigned short stepper_position = 0;
-unsigned short stepper_target = 0;
-char display_buffer[26] = "Hello, world!Goodbye world";
+static unsigned char lcd_col = 0;
+static unsigned char lcd_row = 0;
+char display_buffer[2][13] = {"Hello, world!", "Goodbye world"};
 
 // Write a character from the display buffer to the display
 void handle_display() {
-  static unsigned char display_status = 0;
-  switch (display_status) {
-    case 0:
-      _LCD_CTRL = 0x38;
-      display_status = 1;
-      break;
-    case 1:
-      _LCD_CTRL = 0x0C;
-      display_status = 2;
-      break;
-    case 2:
-      _LCD_CTRL = 0x01;
-      display_status = 3;
-      break;
-    case 3:
-      _LCD_CTRL = 0x80;
-      display_status = 4;
-      break;
-    case 4 ... 16:
-      _LCD_DATA = display_buffer[display_status - 4];
-      display_status++;
-      break;
-    case 17:
-      _LCD_CTRL = 0x80 + 0x40;
-      display_status = 18;
-      break;
-    case 18 ... 30:
-      _LCD_DATA = display_buffer[display_status - 5];
-      display_status++;
-      break;
-    case 31:
-      display_status = 3;
-      break;
+  if (lcd_col) {
+    _LCD_DATA = display_buffer[lcd_row][lcd_col - 1];
+  } else {
+    _LCD_CTRL = (lcd_row ? 0x80 : 0xC0);
+  }
+  lcd_col++;
+  if (lcd_col == 13) {
+    lcd_col = 0;
+    lcd_row = 1 - 0;
   }
 }
 
-// Receive serial data
-void sci_handler() {
-  _PORTA ^= 0x80;
-  // TODO: Load a complete frame into a buffer for processing by the main loop.
-  // TODO: Use the 9th data bit for more reliable framing.
-  static unsigned char serial_state = 0;
-  static unsigned char serial_command;
-  static unsigned char serial_data[2];
-  if (_SCSR & 0x20) {
-    switch (serial_state) {
-      case 0:
-        // Wait for 0xFF to start a frame
-        if (_SCDR == 0xFF) serial_state = 1;
-        break;
-      case 1:
-        // Byte 1 is the command
-        serial_command = _SCDR;
-        serial_state = 2;
-        break;
-      case 2:
-        // Byte 2 is the first data byte
-        serial_data[0] = _SCDR;
-        serial_state = 3;
-        break;
-      case 3:
-        // Byte 3 is the second data byte
-        serial_data[1] = _SCDR;
-        // TODO: implement a checksum here
-        switch (serial_command) {
-          case 0:
-            // Command 0 sets the stepper target
-            stepper_target = (serial_data[0] << 8) | serial_data[1];
-            break;
-          case 1:
-            // Command 1 sets a character in the display buffer
-            if (serial_data[0] < 26) display_buffer[serial_data[0]] = serial_data[1];
-            break;
-        }
-        serial_state = 0;
-        break;
+unsigned char serial_data[2][4];
+unsigned char serial_buf = 0;
+unsigned char serial_pos = 0;
+unsigned char serial_buffer_full[2] = {0, 0};
+
+// Receive serial data into a double buffer
+void handle_sci() {
+  // TODO: Use the 9th data bit for better framing.
+  // For now, we will just use 0xFF as a frame start byte.
+
+  // Receive one byte of data
+  unsigned char byte = _SCDR;
+  // If the byte is 0xFF, resync position
+  if (byte == 0xff) serial_pos = 0;
+  // Append the byte to the serial data buffer
+  serial_data[serial_buf][serial_pos] = byte;
+  // If we have received 4 bytes, try to swap buffers
+  if (serial_pos == 4) {
+    // Reset to start of buffer
+    serial_pos = 0;
+    if (serial_buffer_full[1 - serial_buf] == 0) {
+      // If the other buffer is empty, mark this buffer as full
+      serial_buffer_full[serial_buf] = 1;
+      // ...and prepare to write into the empty buffer
+      serial_buf = 1 - serial_buf;
+      // else, we will just overwrite this buffer again
     }
   }
 }
 
+unsigned short stepper_position[2] = {0, 0};
+unsigned short stepper_target[2] = {0, 0};
+
 // Move the stepper motor one step towards the target
 void handle_steppers() {
-  if (stepper_position < stepper_target) {
-    stepper_position++;
-  } else if (stepper_position > stepper_target) {
-    stepper_position--;
+  unsigned char stepper_output = 0;
+  unsigned char i;
+  for (i = 0; i < 2; i++) {
+    if (stepper_position[i] < stepper_target[i]) {
+      stepper_position[i]++;
+    } else if (stepper_position[i] > stepper_target[i]) {
+      stepper_position[i]--;
+    }
+    unsigned char stepper_step;
+    stepper_step = stepper_position[i] % 6;
+    stepper_output |= stepper_steps[i][stepper_step];
   }
-  unsigned char stepper_step = stepper_position % 6;
-  // Write the step to the stepper motor
-  _STEPPER = stepper_steps[stepper_step];
+  // Write the step to the stepper motors
+  _STEPPER = stepper_output;
   _TFLG2 = 0x40;
 }
 
-int main() {
-  // Clear the BSS segment
+void initialize_display() {
+  _LCD_CTRL = 0x38;
+  while (_LCD_CTRL & 0x80) continue;
+  _LCD_CTRL = 0x0C;
+  while (_LCD_CTRL & 0x80) continue;
+  _LCD_CTRL = 0x01;
+}
+
+void initialize_stepper() { _STEPPER = 0x00; }
+
+void initialize_serial() {
+  // Install the SCI handler
+  _SCI_VECTOR.instruction = 0x7E;
+  _SCI_VECTOR.address = (unsigned short)handle_sci;
+  // Enable receive and receive interrupt
+  _SCCR2 = 0x24;
+  // Unmask interrupts
+  asm("cli");
+}
+
+// Clear the BSS segment
+void initialize_memory() {
   unsigned short *bss = &_bss_start;
   while (bss < &_bss_end) {
     *bss = 0;
     bss++;
   }
+}
 
-  // Install the SCI handler
-  _SCI_VECTOR.instruction = 0x7E;
-  _SCI_VECTOR.address = (unsigned short)sci_handler;
-  // Enable receive interrupt
-  _SCCR2 = _SCCR2 | 0x20;
-  // Unmask interrupts
-  asm("cli");
+int main() {
+  // Configure all hardware
+  initialize_memory();
+  initialize_display();
+  initialize_stepper();
+  initialize_serial();
 
   // Set bit 3 of PORT A (0x1000)
   // This illuminates the cluster and confirms the program is running
@@ -121,16 +112,13 @@ int main() {
 
   // Loop forever
   while (1) {
-    // Run display update code every tick
-    unsigned char cnt_1 = _TCNTH;
-    static unsigned short prev_display_cnt = 0;
-    if (cnt_1 != prev_display_cnt) {
+    // If the display is ready, update it
+    if ((_LCD_CTRL & 0x80) == 0) {
       handle_display();
-      prev_display_cnt = cnt_1;
     }
 
     // Run stepper code every 8th tick
-    unsigned char cnt_8 = cnt_1 & 0xF8;
+    unsigned char cnt_8 = _TCNTH & 0xF8;
     static unsigned short prev_stepper_cnt = 0;
     if (cnt_8 != prev_stepper_cnt) {
       handle_steppers();
