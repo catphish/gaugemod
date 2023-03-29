@@ -10,8 +10,8 @@ start:
 
 	# We can increase the baud rate up to 115200 as needed
 	# 0x22 = 7200 (default), 0x11 = 19200, 0x00 = 115200
-	# ldaa #0x11
-	# staa 0x102B
+	ldaa #0x11
+	staa 0x102B
 
 	# I hope to use the 9th bit for framing of data during normal operation.
 	# Unfortunately Linux doesn't support this so I'll have to use a different

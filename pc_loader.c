@@ -58,8 +58,8 @@ int main(int argc, char* argv[]) {
   printf(" Done\n");
 
   usleep(500000);
-  tio.c_ispeed = 7200;
-  tio.c_ospeed = 7200;
+  tio.c_ispeed = 19200;
+  tio.c_ospeed = 19200;
   r = ioctl(fd, TCSETS2, &tio);
   if (r == 0) {
     printf("Serial port configured successfully.\n");
