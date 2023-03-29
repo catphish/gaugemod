@@ -1,17 +1,19 @@
 #include "program.h"
 
-static unsigned char lcd_col = 0;
-static unsigned char lcd_row = 0;
+unsigned char lcd_col;
+unsigned char lcd_row;
 
 unsigned char serial_data[2][4];
-unsigned char serial_buf = 0;
-unsigned char serial_pos = 0;
-unsigned char serial_buffer_full[2] = {0, 0};
+unsigned char serial_buf;
+unsigned char serial_pos;
+unsigned char serial_buffer_full[2];
 
-unsigned short stepper_position[2] = {0, 0};
-unsigned short stepper_target[2] = {0, 0};
+unsigned short stepper_position[2];
+unsigned short stepper_target[2];
+unsigned char stepper_output;
+unsigned char prev_stepper_cnt;
 
-char display_buffer[2][13] = {"Hello, world!", "Goodbye world"};
+char display_buffer[2][13] = {"\0\0  VX220  "};
 
 // Write a character from the display buffer to the display
 void handle_display() {
@@ -54,22 +56,26 @@ void handle_sci() {
 }
 
 // Move the stepper motor one step towards the target
-void handle_steppers() {
-  unsigned char stepper_output = 0;
-  unsigned char i;
-  for (i = 0; i < 2; i++) {
-    if (stepper_position[i] < stepper_target[i]) {
-      stepper_position[i]++;
-    } else if (stepper_position[i] > stepper_target[i]) {
-      stepper_position[i]--;
-    }
-    unsigned char stepper_step;
-    stepper_step = stepper_position[i] % 6;
-    stepper_output |= stepper_steps[i][stepper_step];
+void handle_stepper_0() {
+  if (stepper_position[0] < stepper_target[0]) {
+    stepper_position[0]++;
+  } else if (stepper_position[0] > stepper_target[0]) {
+    stepper_position[0]--;
   }
-  // Write the step to the stepper motors
-  _STEPPER = stepper_output;
-  _TFLG2 = 0x40;
+  unsigned char stepper_step;
+  stepper_step = stepper_position[0] % 6;
+  stepper_output |= stepper_steps[0][stepper_step];
+}
+// Move the stepper motor one step towards the target
+void handle_stepper_1() {
+  if (stepper_position[1] < stepper_target[1]) {
+    stepper_position[1]++;
+  } else if (stepper_position[1] > stepper_target[1]) {
+    stepper_position[1]--;
+  }
+  unsigned char stepper_step;
+  stepper_step = stepper_position[1] % 6;
+  stepper_output |= stepper_steps[1][stepper_step];
 }
 
 void initialize_display() {
@@ -153,12 +159,17 @@ int main() {
     if (serial_buffer_full[1]) process_serial_buffer_1();
 
     // Run stepper code every 8th tick
-    static unsigned short prev_stepper_cnt = 0;
     unsigned char cnt = _TCNTH;
     char ticks = cnt - prev_stepper_cnt;
-    if (ticks > 10) {
-      handle_steppers();
+    // TODO: stepper acceleration
+    if (ticks > 15) {  // Works at 10, but lets be safe
       prev_stepper_cnt = cnt;
+      // Calculate stepper positions
+      stepper_output = 0;
+      handle_stepper_0();
+      handle_stepper_1();
+      // Write the step to the stepper motors
+      _STEPPER = stepper_output;
     }
   }
 }

@@ -10,10 +10,19 @@ SECTIONS
   {
     *(.main)
     *(.text)
+  } > extram
+
+  .data :
+  {
     *(.data)
     *(.rodata)
+  } > extram
+
+  .bss :
+  {
     _bss_start = .;
     *(.bss)
+    *(COMMON)
     _bss_end = .;
   } > extram
 
@@ -27,7 +36,6 @@ SECTIONS
 _PORTA  = 0x1000;
 _TCNTH  = 0x100E;
 _TMSK2  = 0x1024;
-_TFLG2  = 0x1025;
 _PACTL  = 0x1026;
 _SCCR2  = 0x102D;
 _SCSR   = 0x102E;

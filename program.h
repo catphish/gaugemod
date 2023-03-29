@@ -17,7 +17,6 @@ struct interrupt_vector {
 const unsigned char stepper_steps[2][6] = {{0x60, 0x40, 0xD0, 0x90, 0xB0, 0x20}, {0x06, 0x04, 0x0D, 0x09, 0x0B, 0x02}};
 
 extern volatile unsigned char _PORTA;
-extern volatile unsigned char _TFLG2;
 extern volatile unsigned char _TCNTH;
 extern volatile unsigned char _SCDR;
 extern volatile unsigned char _SCSR;

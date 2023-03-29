@@ -8,11 +8,11 @@ loop do
   end
   f.write(255.chr)
   f.write(1.chr)
-  f.write(0.chr)
+  f.write(rand(2).chr)
   f.write(rand(254).chr)
   f.write(255.chr)
   f.write(2.chr)
-  f.write(0.chr)
+  f.write(rand(2).chr)
   f.write(rand(254).chr)
   sleep 0.2
 end
